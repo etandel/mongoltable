@@ -37,7 +37,7 @@ assert(mongot.__NAME == 'mongoltable', 'wrong name!')
 assert(is_function(mongoltable))
 assert(is_table(mongoltable{
     host = '127.0.0.1',
-    port = 27071,
+    port = 27017,
     database = 'mydb',
     collection = 'mycol',
 }))

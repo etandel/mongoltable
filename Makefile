@@ -4,8 +4,7 @@ all:
 	make capi
 
 capi:
-	#gcc -o connections.so -shared -std=c99 -lmongoc -llua connections.c
-	gcc -o connections.so -shared -llua connections.c
+	gcc -o connections.so -shared -std=c99 -lmongoc -llua connections.c
 	#libtool --tag=CC --mode=compile cc -c connections.c
 	#libtool --tag=CC --mode=link cc -rpath /usr/lib -o libconnections.la connections.lo
 	#mv .libs/libconnections.so.0.0.0 connections.so
