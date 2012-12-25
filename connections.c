@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "lua.h"
 #include "lauxlib.h"
 #include "mongo.h"
+#include "bson.h"
 
 //key of the connections table on the registry
 #define CONNSKEY "mongoconns"
@@ -14,11 +17,61 @@
 
 #define PARAMSIZE 15 //TODO: get a proper size
 
+typedef struct _mongot {
+    mongo *conn;
+    char dbname[PARAMSIZE];
+    char collname[PARAMSIZE];
+} mongot_t;
+
 static int con_get(lua_State *L){
     return 0;
 }
 
 static int con_set(lua_State *L){
+    mongot_t *mongot;
+    bson b[1];
+    // mydb.mycollection
+    char *indexstr = (char*) malloc(sizeof(char)*(2*PARAMSIZE+2));
+
+    //check k type
+    luaL_checkstring(L, 2);
+
+    //c = reg[mongoconns]
+    lua_pushstring(L, CONNSKEY);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    //get c[self]
+    lua_pushvalue(L, 1);
+    lua_gettable(L, -2);
+    mongot = (mongot_t*) lua_touserdata(L, -1);
+
+    bson_init(b);{
+        switch(lua_type(L, 3)){
+            case LUA_TSTRING:
+                bson_append_string(b, lua_tostring(L, 2), lua_tostring(L, 3));
+                break;
+
+            case LUA_TNUMBER:
+                bson_append_double(b, lua_tostring(L, 2), (double)lua_tonumber(L, 3));
+                break;
+
+            case LUA_TTABLE:
+                //TODO: implement this
+                bson_append_string(b, lua_tostring(L, 2), "TABlE!");
+                break;
+
+            default:
+                return luaL_error(L, "Only numbers, strings or tables accepted."
+                                  "Got: %s\n", lua_typename(L, 3));
+        }
+    }
+    bson_finish(b);
+
+    snprintf(indexstr, 2*PARAMSIZE+1, "%s.%s", mongot->dbname, mongot->collname);
+    mongo_insert(mongot->conn, indexstr, b, NULL);
+
+    bson_destroy(b);
+    free(indexstr);
+
     return 0;
 }
 
@@ -52,12 +105,13 @@ static void get_conn_params(lua_State *L, char *host, int *port,
 }
 
 static int con_bind(lua_State *L){
-    int port;
-    char host[PARAMSIZE], dbname[PARAMSIZE], collname[PARAMSIZE];
-    int status;
-    mongo *conn = (mongo*)malloc(sizeof(mongo));
+    int port, status;;
+    char host[PARAMSIZE];
+    mongot_t *mongot = (mongot_t*)malloc(sizeof(mongot_t));
+    mongo *conn = (mongo*)malloc(sizeof(mongo)); 
+    mongot->conn = conn;
 
-    get_conn_params(L, host, &port, dbname, collname);
+    get_conn_params(L, host, &port, mongot->dbname, mongot->collname);
     mongo_init(conn);
     status = mongo_client(conn, host, port);
     if (status != MONGO_OK){
@@ -79,13 +133,14 @@ static int con_bind(lua_State *L){
     lua_pushstring(L, CONNSKEY);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_pushvalue(L, 1);
-    lua_pushlightuserdata(L, conn);
+    lua_pushlightuserdata(L, mongot);
     lua_settable(L, -3);
 
     return 0;
 }
 
 static int con_unbind(lua_State *L){
+    mongot_t *mongot;
     luaL_checktype(L, 1, LUA_TTABLE);
 
     //close connection (close(reg[conns][tbl]))
@@ -93,7 +148,8 @@ static int con_unbind(lua_State *L){
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_pushvalue(L, 1);
     lua_gettable(L, -2);
-    mongo_destroy((mongo*)lua_touserdata(L, lua_gettop(L)));
+    mongot = (mongot_t*)lua_touserdata(L, lua_gettop(L));
+    mongo_destroy(mongot->conn);
     lua_pop(L, 1);
 
     //removes that table from entry
