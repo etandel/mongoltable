@@ -14,6 +14,12 @@
 
 #define PARAMSIZE 15 //TODO: get a proper size
 
+typedef struct _mongot {
+    mongo *conn;
+    char dbname[PARAMSIZE];
+    char collname[PARAMSIZE];
+} mongot_t;
+
 static int con_get(lua_State *L){
     return 0;
 }
@@ -52,12 +58,13 @@ static void get_conn_params(lua_State *L, char *host, int *port,
 }
 
 static int con_bind(lua_State *L){
-    int port;
-    char host[PARAMSIZE], dbname[PARAMSIZE], collname[PARAMSIZE];
-    int status;
-    mongo *conn = (mongo*)malloc(sizeof(mongo));
+    int port, status;;
+    char host[PARAMSIZE];
+    mongot_t *mongot = (mongot_t*)malloc(sizeof(mongot_t));
+    mongo *conn = (mongo*)malloc(sizeof(mongo)); 
+    mongot->conn = conn;
 
-    get_conn_params(L, host, &port, dbname, collname);
+    get_conn_params(L, host, &port, mongot->dbname, mongot->collname);
     mongo_init(conn);
     status = mongo_client(conn, host, port);
     if (status != MONGO_OK){
@@ -79,13 +86,14 @@ static int con_bind(lua_State *L){
     lua_pushstring(L, CONNSKEY);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_pushvalue(L, 1);
-    lua_pushlightuserdata(L, conn);
+    lua_pushlightuserdata(L, mongot);
     lua_settable(L, -3);
 
     return 0;
 }
 
 static int con_unbind(lua_State *L){
+    mongot_t *mongot;
     luaL_checktype(L, 1, LUA_TTABLE);
 
     //close connection (close(reg[conns][tbl]))
@@ -93,7 +101,8 @@ static int con_unbind(lua_State *L){
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_pushvalue(L, 1);
     lua_gettable(L, -2);
-    mongo_destroy((mongo*)lua_touserdata(L, lua_gettop(L)));
+    mongot = (mongot_t*)lua_touserdata(L, lua_gettop(L));
+    mongo_destroy(mongot->conn);
     lua_pop(L, 1);
 
     //removes that table from entry
