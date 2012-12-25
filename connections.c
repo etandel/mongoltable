@@ -76,16 +76,31 @@ static int con_bind(lua_State *L){
     }
 
     //set registry[conns][newmongoltable] = connection
-    lua_copy(L, 1, lua_gettop(L)); //ok because won't use params table again
-    lua_pushlightuserdata(L, conn);
     lua_pushstring(L, CONNSKEY);
     lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_settable(L, lua_gettop(L));
+    lua_pushvalue(L, 1);
+    lua_pushlightuserdata(L, conn);
+    lua_settable(L, -3);
 
     return 0;
 }
 
 static int con_unbind(lua_State *L){
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    //close connection (close(reg[conns][tbl]))
+    lua_pushstring(L, CONNSKEY);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_pushvalue(L, 1);
+    lua_gettable(L, -2);
+    mongo_destroy((mongo*)lua_touserdata(L, lua_gettop(L)));
+    lua_pop(L, 1);
+
+    //removes that table from entry
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    lua_settable(L, -3);
+
     return 0;
 }
 
