@@ -14,9 +14,9 @@ local mt_mongo = {
     end,
 }
 
-function mongoltable(connection_prefs)
+function mongoltable(conn_prefs)
     local t = setmetatable({}, mt_mongo)
-    connection.bind(t, prefs)
+    connection.bind(t, conn_prefs)
     return t
 end
 
