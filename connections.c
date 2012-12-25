@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "lua.h"
 #include "lauxlib.h"
 #include "mongo.h"
+#include "bson.h"
 
 //key of the connections table on the registry
 #define CONNSKEY "mongoconns"
@@ -25,6 +28,50 @@ static int con_get(lua_State *L){
 }
 
 static int con_set(lua_State *L){
+    mongot_t *mongot;
+    bson b[1];
+    // mydb.mycollection
+    char *indexstr = (char*) malloc(sizeof(char)*(2*PARAMSIZE+2));
+
+    //check k type
+    luaL_checkstring(L, 2);
+
+    //c = reg[mongoconns]
+    lua_pushstring(L, CONNSKEY);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    //get c[self]
+    lua_pushvalue(L, 1);
+    lua_gettable(L, -2);
+    mongot = (mongot_t*) lua_touserdata(L, -1);
+
+    bson_init(b);{
+        switch(lua_type(L, 3)){
+            case LUA_TSTRING:
+                bson_append_string(b, lua_tostring(L, 2), lua_tostring(L, 3));
+                break;
+
+            case LUA_TNUMBER:
+                bson_append_double(b, lua_tostring(L, 2), (double)lua_tonumber(L, 3));
+                break;
+
+            case LUA_TTABLE:
+                //TODO: implement this
+                bson_append_string(b, lua_tostring(L, 2), "TABlE!");
+                break;
+
+            default:
+                return luaL_error(L, "Only numbers, strings or tables accepted."
+                                  "Got: %s\n", lua_typename(L, 3));
+        }
+    }
+    bson_finish(b);
+
+    snprintf(indexstr, 2*PARAMSIZE+1, "%s.%s", mongot->dbname, mongot->collname);
+    mongo_insert(mongot->conn, indexstr, b, NULL);
+
+    bson_destroy(b);
+    free(indexstr);
+
     return 0;
 }
 
