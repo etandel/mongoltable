@@ -58,35 +58,37 @@ static int con_get(lua_State *L){
 static int con_set(lua_State *L){
     const char *collpath, *key;
     mongo *conn;
-    bson b[1];
+    bson cond[1], op[1];
 
     conn = (mongo*) lua_touserdata(L, 1);
     collpath = luaL_checkstring(L, 2);
     key = luaL_checkstring(L, 3);
 
-    bson_init(b);{
+    bson_init(cond);
+        bson_append_string(cond, "_id", key);
+    bson_finish(cond);
+
+    bson_init(op);
+        bson_append_string(op, "_id", key);
         switch(lua_type(L, 4)){
             case LUA_TSTRING:
-                bson_append_string(b, key, lua_tostring(L, 4));
+                bson_append_string(op, key, lua_tostring(L, 4));
                 break;
 
             case LUA_TNUMBER:
-                bson_append_double(b, key, (double)lua_tonumber(L, 4));
+                bson_append_double(op, key, (double)lua_tonumber(L, 4));
                 break;
 
             case LUA_TTABLE:
                 //TODO: implement this
-                bson_append_string(b, key, "TABlE!");
+                bson_append_start_object(op, key);
+                bson_append_finish_object(op);
                 break;
-
-            default:
-                return luaL_error(L, "Only numbers, strings or tables accepted."
-                                  "Got: %s\n", lua_typename(L, 4));
         }
-    }bson_finish(b);
+    bson_finish(op);
 
-    mongo_insert(conn, collpath, b, NULL);
-    bson_destroy(b);
+    mongo_update(conn, collpath, cond, op, MONGO_UPDATE_UPSERT, NULL);
+    bson_destroy(op);
 
     return 0;
 }
