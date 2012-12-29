@@ -30,6 +30,13 @@ local mt_mongo = {
     end,
 
     __newindex = function(self, k, v)
+        tk, tv = type(k), type(v)
+        assert(tk == 'string', 'Only strings accepted as keys. Got :'..tk)
+        assert(
+            tv == 'string' or tv == 'number' or tv == 'table',
+            'Only numbers, strings or tables accepted as value. Got: '..tv
+        )
+
         mongoconn.set(
             connections[self].conn,
             connections[self].collpath,

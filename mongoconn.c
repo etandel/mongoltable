@@ -78,10 +78,6 @@ static int con_set(lua_State *L){
                 //TODO: implement this
                 bson_append_string(b, key, "TABlE!");
                 break;
-
-            default:
-                return luaL_error(L, "Only numbers, strings or tables accepted."
-                                  "Got: %s\n", lua_typename(L, 4));
         }
     }bson_finish(b);
 
