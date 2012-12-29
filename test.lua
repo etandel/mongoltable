@@ -20,7 +20,7 @@ end
 
 
 -------- Test connections --------
-local con = require 'connections'
+local con = require 'mongoconn'
 
 assert(is_table(con))
 assert(is_function(con.get))
