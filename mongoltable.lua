@@ -33,8 +33,8 @@ local mt_mongo = {
         tk, tv = type(k), type(v)
         assert(tk == 'string', 'Only strings accepted as keys. Got :'..tk)
         assert(
-            tv == 'string' or tv == 'number' or tv == 'table',
-            'Only numbers, strings or tables accepted as value. Got: '..tv
+            tv ~= 'userdata' and tv ~= 'function' and tv ~= 'thread',
+            'Userdata, thread and function cannot be a value. Got: '..tv
         )
 
         mongoconn.set(

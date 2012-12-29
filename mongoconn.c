@@ -127,6 +127,10 @@ static int con_set(lua_State *L){
                 bson_append_start_object(op, key);
                 bson_append_finish_object(op);
                 break;
+
+            case LUA_TBOOLEAN:
+                bson_append_bool(op, key, (bson_bool_t)lua_toboolean(L, 4));
+                break;
         }
     bson_finish(op); //TODO: Handle possible errors
 
