@@ -51,7 +51,50 @@ static int con_close(lua_State *L){
 
 
 static int con_get(lua_State *L){
-    return 0;
+    const char *collpath, *key;
+    mongo *conn;
+    mongo_cursor cursor[1];
+    bson_iterator iter[1];
+    bson q[1];
+    bson_type rtype;
+
+    conn = (mongo*) lua_touserdata(L, 1);
+    collpath = luaL_checkstring(L, 2);
+    key = luaL_checkstring(L, 3);
+
+    bson_init(q);
+        bson_append_string(q, "_id", key);
+    bson_finish(q);
+
+    mongo_cursor_init(cursor, conn, collpath);
+    mongo_cursor_set_query(cursor, q);
+    if (mongo_cursor_next(cursor) != MONGO_OK){
+        lua_pushnil(L);
+    }
+    else{
+        //collection it should've been created using mongoltables, so other types
+        //cannot exist
+        switch (bson_find(iter, mongo_cursor_bson(cursor), key)){
+            case BSON_DOUBLE:
+                lua_pushnumber(L, (lua_Number)bson_iterator_double(iter));
+                break;
+
+            case BSON_OBJECT:
+                //TODO: properly implement this
+                lua_newtable(L);
+                break;
+
+            case BSON_STRING:
+                lua_pushstring(L, bson_iterator_string(iter));
+                break;
+
+            case BSON_BOOL:
+                lua_pushboolean(L, (int)bson_iterator_bool_raw(iter));
+                break;
+        }
+    }
+
+    return 1;
 }
 
 
@@ -85,7 +128,7 @@ static int con_set(lua_State *L){
                 bson_append_finish_object(op);
                 break;
         }
-    bson_finish(op);
+    bson_finish(op); //TODO: Handle possible errors
 
     mongo_update(conn, collpath, cond, op, MONGO_UPDATE_UPSERT, NULL);
     bson_destroy(op);
