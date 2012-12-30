@@ -30,7 +30,7 @@ local mt_mongo = {
     end,
 
     __newindex = function(self, k, v)
-        tk, tv = type(k), type(v)
+        local tk, tv = type(k), type(v)
         assert(tk == 'string', 'Only strings accepted as keys. Got :'..tk)
         assert(
             tv ~= 'userdata' and tv ~= 'function' and tv ~= 'thread',
